@@ -4,6 +4,7 @@ import com.fastasyncworldedit.core.nbt.FaweCompoundTag;
 import com.fastasyncworldedit.core.queue.IChunkGet;
 import com.fastasyncworldedit.core.queue.implementation.packet.ChunkPacket;
 import com.fastasyncworldedit.core.util.ExtentTraverser;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.fastasyncworldedit.core.util.task.RunnableVal;
 import com.sk89q.jnbt.CompoundTag;
@@ -40,6 +41,7 @@ import com.sk89q.worldedit.world.block.BlockType;
 import com.sk89q.worldedit.world.weather.WeatherType;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -265,7 +267,15 @@ public class WorldWrapper extends AbstractWorld {
     //FAWE start
     @Override
     public Collection<BaseItemStack> getBlockDrops(final BlockVector3 position) {
-        return TaskManager.taskManager().sync(() -> parent.getBlockDrops(position));
+        if (FoliaUtil.isFoliaServer()) {
+            try {
+                return parent.getBlockDrops(position);
+            } catch (Exception e) {
+                return new ArrayList<>();
+            }
+        } else {
+            return TaskManager.taskManager().sync(() -> parent.getBlockDrops(position));
+        }
     }
     //FAWE end
 
