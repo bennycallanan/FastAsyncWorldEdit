@@ -27,6 +27,7 @@ import com.fastasyncworldedit.core.internal.exception.FaweException;
 import com.fastasyncworldedit.core.nbt.FaweCompoundTag;
 import com.fastasyncworldedit.core.queue.IChunkGet;
 import com.fastasyncworldedit.core.queue.implementation.packet.ChunkPacket;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
@@ -146,7 +147,12 @@ public class BukkitWorld extends AbstractWorld {
     public List<com.sk89q.worldedit.entity.Entity> getEntities(Region region) {
         World world = getWorld();
 
-        List<Entity> ents = TaskManager.taskManager().sync(world::getEntities);
+        List<Entity> ents;
+        if (FoliaUtil.isFoliaServer()) {
+            ents = TaskManager.taskManager().syncWhenFree(world::getEntities);
+        } else {
+            ents = TaskManager.taskManager().sync(world::getEntities);
+        }
         List<com.sk89q.worldedit.entity.Entity> entities = new ArrayList<>();
         for (Entity ent : ents) {
             if (region.contains(BukkitAdapter.asBlockVector(ent.getLocation()))) {
@@ -160,7 +166,12 @@ public class BukkitWorld extends AbstractWorld {
     public List<com.sk89q.worldedit.entity.Entity> getEntities() {
         List<com.sk89q.worldedit.entity.Entity> list = new ArrayList<>();
 
-        List<Entity> ents = TaskManager.taskManager().sync(getWorld()::getEntities);
+        List<Entity> ents;
+        if (FoliaUtil.isFoliaServer()) {
+            ents = TaskManager.taskManager().syncWhenFree(getWorld()::getEntities);
+        } else {
+            ents = TaskManager.taskManager().sync(getWorld()::getEntities);
+        }
         for (Entity entity : ents) {
             list.add(BukkitAdapter.adapt(entity));
         }

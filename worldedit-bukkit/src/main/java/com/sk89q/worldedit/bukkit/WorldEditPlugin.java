@@ -21,6 +21,7 @@ package com.sk89q.worldedit.bukkit;
 
 import com.fastasyncworldedit.bukkit.BukkitPermissionAttachmentManager;
 import com.fastasyncworldedit.bukkit.FaweBukkit;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.UpdateNotification;
 import com.fastasyncworldedit.core.Fawe;
 import com.fastasyncworldedit.core.util.WEManager;
@@ -459,7 +460,7 @@ public class WorldEditPlugin extends JavaPlugin {
         try {
             FaweBukkit faweBukkit = Fawe.<FaweBukkit>platform();
             if (faweBukkit != null && faweBukkit.getScheduler() != null) {
-                if (!com.fastasyncworldedit.core.util.FoliaUtil.isFoliaServer()) {
+                if (!FoliaUtil.isFoliaServer()) {
                     try {
                         this.getServer().getScheduler().cancelTasks(this);
                     } catch (Exception e) {
@@ -467,7 +468,7 @@ public class WorldEditPlugin extends JavaPlugin {
                 }
             }
         } catch (Exception e) {
-            if (!com.fastasyncworldedit.core.util.FoliaUtil.isFoliaServer()) {
+            if (!FoliaUtil.isFoliaServer()) {
                 this.getServer().getScheduler().cancelTasks(this);
             }
         }

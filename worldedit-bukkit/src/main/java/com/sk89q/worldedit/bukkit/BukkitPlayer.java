@@ -21,6 +21,7 @@ package com.sk89q.worldedit.bukkit;
 
 import com.fastasyncworldedit.core.configuration.Caption;
 import com.fastasyncworldedit.core.configuration.Settings;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.sk89q.util.StringUtil;
 import com.sk89q.wepif.VaultResolver;
@@ -242,7 +243,7 @@ public class BukkitPlayer extends AbstractPlayerActor {
         }
         org.bukkit.World finalWorld = world;
         //FAWE end
-        if (com.fastasyncworldedit.core.util.FoliaUtil.isFoliaServer()) {
+        if (FoliaUtil.isFoliaServer()) {
             try {
                 player.teleportAsync(new Location(
                         finalWorld,
@@ -379,7 +380,7 @@ public class BukkitPlayer extends AbstractPlayerActor {
 
     @Override
     public boolean setLocation(com.sk89q.worldedit.util.Location location) {
-        if (com.fastasyncworldedit.core.util.FoliaUtil.isFoliaServer()) {
+        if (FoliaUtil.isFoliaServer()) {
             try {
                 player.teleportAsync(BukkitAdapter.adapt(location)).get();
                 return true;
