@@ -8,13 +8,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Folia implementation of the Scheduler interface.
  */
-public class FoliaScheduler implements Scheduler {
-
-    private final Plugin plugin;
-
-    public FoliaScheduler(Plugin plugin) {
-        this.plugin = plugin;
-    }
+public record FoliaScheduler(Plugin plugin) implements Scheduler {
 
     @Override
     public void runTaskTimer(Plugin plugin, Runnable runnable, long delay, long period) {
@@ -259,6 +253,7 @@ public class FoliaScheduler implements Scheduler {
      * Wrapper for Folia's ScheduledTask to implement CancellableTask interface.
      */
     private static class FoliaCancellableTask implements CancellableTask {
+
         private final ScheduledTask task;
         private volatile boolean cancelled = false;
 

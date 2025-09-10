@@ -6,13 +6,7 @@ import org.bukkit.scheduler.BukkitTask;
 /**
  * Bukkit implementation of the Scheduler interface.
  */
-public class BukkitScheduler implements Scheduler {
-
-    private final Plugin plugin;
-
-    public BukkitScheduler(Plugin plugin) {
-        this.plugin = plugin;
-    }
+public record BukkitScheduler(Plugin plugin) implements Scheduler {
 
     @Override
     public void runTaskTimer(Plugin plugin, Runnable runnable, long delay, long period) {
@@ -176,12 +170,7 @@ public class BukkitScheduler implements Scheduler {
     /**
      * Wrapper for BukkitTask to implement CancellableTask interface.
      */
-    private static class BukkitCancellableTask implements CancellableTask {
-        private final BukkitTask task;
-
-        public BukkitCancellableTask(BukkitTask task) {
-            this.task = task;
-        }
+    private record BukkitCancellableTask(BukkitTask task) implements CancellableTask {
 
         @Override
         public void cancel() {
