@@ -124,7 +124,7 @@ public class BukkitEntity implements Entity {
         if (entity != null) {
             try {
                 if (FoliaUtil.isFoliaServer()) {
-                    entity.getScheduler().execute(WorldEditPlugin.getInstance(), entity::remove, null, 0);
+                    entity.getScheduler().execute(WorldEditPlugin.getInstance(), entity::remove, null, 1);
                     return true;
                 } else {
                     entity.remove();
