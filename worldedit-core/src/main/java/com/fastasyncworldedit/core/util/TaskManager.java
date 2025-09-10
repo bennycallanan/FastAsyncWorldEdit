@@ -326,7 +326,7 @@ public abstract class TaskManager {
             return function.value;
         }
         try {
-            return Fawe.instance().getQueueHandler().sync((Supplier<T>) function).get();
+            return Fawe.instance().getQueueHandler().syncWhenFree((Supplier<T>) function).get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
@@ -342,7 +342,7 @@ public abstract class TaskManager {
             return supplier.get();
         }
         try {
-            return Fawe.instance().getQueueHandler().sync(supplier).get();
+            return Fawe.instance().getQueueHandler().syncWhenFree(supplier).get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }

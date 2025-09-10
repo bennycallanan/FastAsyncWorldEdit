@@ -21,6 +21,7 @@ package com.sk89q.worldedit.bukkit;
 
 import com.fastasyncworldedit.core.configuration.Caption;
 import com.fastasyncworldedit.core.configuration.Settings;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.sk89q.util.StringUtil;
 import com.sk89q.wepif.VaultResolver;
@@ -242,14 +243,30 @@ public class BukkitPlayer extends AbstractPlayerActor {
         }
         org.bukkit.World finalWorld = world;
         //FAWE end
-        return TaskManager.taskManager().sync(() -> player.teleport(new Location(
-                finalWorld,
-                pos.x(),
-                pos.y(),
-                pos.z(),
-                yaw,
-                pitch
-        )));
+        if (FoliaUtil.isFoliaServer()) {
+            try {
+                player.teleportAsync(new Location(
+                        finalWorld,
+                        pos.x(),
+                        pos.y(),
+                        pos.z(),
+                        yaw,
+                        pitch
+                )).get();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        } else {
+            return TaskManager.taskManager().sync(() -> player.teleport(new Location(
+                    finalWorld,
+                    pos.x(),
+                    pos.y(),
+                    pos.z(),
+                    yaw,
+                    pitch
+            )));
+        }
     }
 
     @Override
@@ -363,7 +380,16 @@ public class BukkitPlayer extends AbstractPlayerActor {
 
     @Override
     public boolean setLocation(com.sk89q.worldedit.util.Location location) {
-        return player.teleport(BukkitAdapter.adapt(location));
+        if (FoliaUtil.isFoliaServer()) {
+            try {
+                player.teleportAsync(BukkitAdapter.adapt(location)).get();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        } else {
+            return player.teleport(BukkitAdapter.adapt(location));
+        }
     }
 
     @Override

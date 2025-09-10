@@ -19,6 +19,7 @@
 
 package com.sk89q.worldedit.bukkit;
 
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.sk89q.worldedit.bukkit.adapter.BukkitImplAdapter;
 import com.sk89q.worldedit.entity.BaseEntity;
 import com.sk89q.worldedit.entity.Entity;
@@ -83,7 +84,16 @@ public class BukkitEntity implements Entity {
     public boolean setLocation(Location location) {
         org.bukkit.entity.Entity entity = entityRef.get();
         if (entity != null) {
-            return entity.teleport(BukkitAdapter.adapt(location));
+            if (FoliaUtil.isFoliaServer()) {
+                try {
+                    entity.teleportAsync(BukkitAdapter.adapt(location)).get();
+                    return true;
+                } catch (Exception e) {
+                    return false;
+                }
+            } else {
+                return entity.teleport(BukkitAdapter.adapt(location));
+            }
         } else {
             return false;
         }
@@ -113,11 +123,16 @@ public class BukkitEntity implements Entity {
         org.bukkit.entity.Entity entity = entityRef.get();
         if (entity != null) {
             try {
-                entity.remove();
+                if (FoliaUtil.isFoliaServer()) {
+                    entity.getScheduler().execute(WorldEditPlugin.getInstance(), entity::remove, null, 0);
+                    return true;
+                } else {
+                    entity.remove();
+                    return entity.isDead();
+                }
             } catch (UnsupportedOperationException e) {
                 return false;
             }
-            return entity.isDead();
         } else {
             return true;
         }
