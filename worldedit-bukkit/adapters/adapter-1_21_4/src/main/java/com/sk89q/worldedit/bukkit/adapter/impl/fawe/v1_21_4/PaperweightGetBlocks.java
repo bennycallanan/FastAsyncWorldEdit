@@ -702,6 +702,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 }
 
                 syncTasks[0] = () -> {
+                    final Map<BlockPos, BlockEntity> tileMap = nmsChunk.getBlockEntities();
                     for (final Map.Entry<BlockVector3, FaweCompoundTag> entry : tiles.entrySet()) {
                         final FaweCompoundTag nativeTag = entry.getValue();
                         final BlockVector3 blockHash = entry.getKey();
@@ -710,19 +711,17 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                         final int z = blockHash.z() + bz;
                         final BlockPos pos = new BlockPos(x, y, z);
 
-                        synchronized (nmsWorld) {
-                            BlockEntity tileEntity = nmsWorld.getBlockEntity(pos);
-                            if (tileEntity == null || tileEntity.isRemoved()) {
-                                nmsWorld.removeBlockEntity(pos);
-                                tileEntity = nmsWorld.getBlockEntity(pos);
-                            }
-                            if (tileEntity != null) {
-                                final CompoundTag tag = (CompoundTag) adapter.fromNativeLin(nativeTag.linTag());
-                                tag.put("x", IntTag.valueOf(x));
-                                tag.put("y", IntTag.valueOf(y));
-                                tag.put("z", IntTag.valueOf(z));
-                                tileEntity.loadWithComponents(tag, DedicatedServer.getServer().registryAccess());
-                            }
+                        BlockEntity tileEntity = tileMap.get(pos);
+                        if (tileEntity == null || tileEntity.isRemoved()) {
+                            tileMap.remove(pos);
+                            tileEntity = tileMap.get(pos);
+                        }
+                        if (tileEntity != null) {
+                            final CompoundTag tag = (CompoundTag) adapter.fromNativeLin(nativeTag.linTag());
+                            tag.put("x", IntTag.valueOf(x));
+                            tag.put("y", IntTag.valueOf(y));
+                            tag.put("z", IntTag.valueOf(z));
+                            tileEntity.loadWithComponents(tag, DedicatedServer.getServer().registryAccess());
                         }
                     }
                 };
