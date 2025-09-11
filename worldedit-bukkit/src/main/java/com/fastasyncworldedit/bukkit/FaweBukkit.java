@@ -87,7 +87,7 @@ public class FaweBukkit implements IFawe, Listener {
         platformAdapter = new NMSAdapter();
 
         //PlotSquared support is limited to Spigot/Paper as of 02/20/2020
-        TaskManager.taskManager().later(this::setupPlotSquared, 0);
+        TaskManager.taskManager().later(this::setupPlotSquared, 1);
 
         // Registered delayed Event Listeners
         TaskManager.taskManager().task(() -> {
