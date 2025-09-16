@@ -13,6 +13,7 @@ import com.fastasyncworldedit.core.math.IntPair;
 import com.fastasyncworldedit.core.nbt.FaweCompoundTag;
 import com.fastasyncworldedit.core.queue.IChunkSet;
 import com.fastasyncworldedit.core.queue.implementation.QueueHandler;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.MathMan;
 import com.fastasyncworldedit.core.util.NbtUtils;
 import com.fastasyncworldedit.core.util.collection.AdaptedMap;
@@ -321,7 +322,18 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
     }
 
     private void removeEntity(Entity entity) {
-        entity.discard();
+        if (FoliaUtil.isFoliaServer()) {
+            entity.getBukkitEntity().getScheduler().execute(
+                WorldEditPlugin.getInstance(), () -> {
+                    if (!entity.isRemoved()) {
+                        entity.discard();
+                    }
+                }, null, 1L);
+        } else {
+            if (!entity.isRemoved()) {
+                entity.discard();
+            }
+        }
     }
 
     @Override
