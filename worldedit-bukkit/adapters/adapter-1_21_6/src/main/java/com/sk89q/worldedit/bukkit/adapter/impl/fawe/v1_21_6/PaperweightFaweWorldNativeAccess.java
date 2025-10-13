@@ -101,7 +101,8 @@ public class PaperweightFaweWorldNativeAccess implements WorldNativeAccess<Level
     ) {
         int currentTick = getCurrentTick();
         if (Fawe.isMainThread()) {
-            return levelChunk.setBlockState(blockPos, blockState,
+            return levelChunk.setBlockState(
+                    blockPos, blockState,
                     this.sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
             );
         }
@@ -189,7 +190,13 @@ public class PaperweightFaweWorldNativeAccess implements WorldNativeAccess<Level
             // Un-nest neighbour updating
             for (Direction direction : NEIGHBOUR_ORDER) {
                 BlockPos shifted = blockPos.relative(direction);
-                level.getBlockState(shifted).handleNeighborChanged(level, shifted, oldState.getBlock(), ExperimentalRedstoneUtils.initialOrientation(level, null, null), false);
+                level.getBlockState(shifted).handleNeighborChanged(
+                        level,
+                        shifted,
+                        oldState.getBlock(),
+                        ExperimentalRedstoneUtils.initialOrientation(level, null, null),
+                        false
+                );
             }
         }
         if (newState.hasAnalogOutputSignal()) {
@@ -226,7 +233,11 @@ public class PaperweightFaweWorldNativeAccess implements WorldNativeAccess<Level
     }
 
     @Override
-    public void updateBlock(BlockPos pos, net.minecraft.world.level.block.state.BlockState oldState, net.minecraft.world.level.block.state.BlockState newState) {
+    public void updateBlock(
+            BlockPos pos,
+            net.minecraft.world.level.block.state.BlockState oldState,
+            net.minecraft.world.level.block.state.BlockState newState
+    ) {
         Level world = getLevel();
         newState.onPlace(world, pos, oldState, false);
     }
@@ -253,7 +264,8 @@ public class PaperweightFaweWorldNativeAccess implements WorldNativeAccess<Level
         RunnableVal<Object> runnableVal = new RunnableVal<>() {
             @Override
             public void run(Object value) {
-                changes.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+                changes.forEach(cc -> cc.levelChunk.setBlockState(
+                        cc.blockPos, cc.blockState,
                         sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
                 ));
                 if (!sendChunks) {
@@ -272,7 +284,8 @@ public class PaperweightFaweWorldNativeAccess implements WorldNativeAccess<Level
         RunnableVal<Object> runnableVal = new RunnableVal<>() {
             @Override
             public void run(Object value) {
-                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(
+                        cc.blockPos, cc.blockState,
                         sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
                 ));
                 for (IntPair chunk : cachedChunksToSend) {
