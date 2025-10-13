@@ -200,23 +200,30 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
 
     @Override
     public FaweCompoundTag tile(final int x, final int y, final int z) {
-        BlockEntity blockEntity = getChunk().getBlockEntity(new BlockPos((x & 15) + (
-                chunkX << 4), y, (z & 15) + (
-                chunkZ << 4)));
-        if (blockEntity == null) {
+        try {
+            BlockEntity blockEntity = getChunk().getBlockEntity(new BlockPos((x & 15) + (
+                    chunkX << 4), y, (z & 15) + (
+                    chunkZ << 4)));
+            if (blockEntity == null) {
+                return null;
+            }
+            return NMS_TO_TILE.apply(blockEntity);
+        } catch (NullPointerException e) {
             return null;
         }
-        return NMS_TO_TILE.apply(blockEntity);
-
     }
 
     @Override
     public Map<BlockVector3, FaweCompoundTag> tiles() {
-        Map<BlockPos, BlockEntity> nmsTiles = getChunk().getBlockEntities();
-        if (nmsTiles.isEmpty()) {
+        try {
+            Map<BlockPos, BlockEntity> nmsTiles = getChunk().getBlockEntities();
+            if (nmsTiles.isEmpty()) {
+                return Collections.emptyMap();
+            }
+            return AdaptedMap.immutable(nmsTiles, posNms2We, NMS_TO_TILE);
+        } catch (NullPointerException e) {
             return Collections.emptyMap();
         }
-        return AdaptedMap.immutable(nmsTiles, posNms2We, NMS_TO_TILE);
     }
 
     @Override
@@ -720,7 +727,6 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 }
 
                 syncTasks[0] = () -> {
-                    final Map<BlockPos, BlockEntity> tileMap = nmsChunk.getBlockEntities();
                     for (final Map.Entry<BlockVector3, FaweCompoundTag> entry : tiles.entrySet()) {
                         final FaweCompoundTag nativeTag = entry.getValue();
                         final BlockVector3 blockHash = entry.getKey();
@@ -729,19 +735,21 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                         final int z = blockHash.z() + bz;
                         final BlockPos pos = new BlockPos(x, y, z);
 
-                        BlockEntity tileEntity = tileMap.get(pos);
-                        if (tileEntity == null || tileEntity.isRemoved()) {
-                            tileMap.remove(pos);
-                            tileEntity = tileMap.get(pos);
-                        }
-                        if (tileEntity != null) {
-                            final CompoundTag tag = (CompoundTag) adapter.fromNativeLin(nativeTag.linTag());
-                            tag.put("x", IntTag.valueOf(x));
-                            tag.put("y", IntTag.valueOf(y));
-                            tag.put("z", IntTag.valueOf(z));
-                            // TODO (VI/O)
-                            final ValueInput input = createInput(tag);
-                            tileEntity.loadWithComponents(input);
+                        synchronized (nmsWorld) {
+                            BlockEntity tileEntity = nmsWorld.getBlockEntity(pos);
+                            if (tileEntity == null || tileEntity.isRemoved()) {
+                                nmsWorld.removeBlockEntity(pos);
+                                tileEntity = nmsWorld.getBlockEntity(pos);
+                            }
+                            if (tileEntity != null) {
+                                final CompoundTag tag = (CompoundTag) adapter.fromNativeLin(nativeTag.linTag());
+                                tag.put("x", IntTag.valueOf(x));
+                                tag.put("y", IntTag.valueOf(y));
+                                tag.put("z", IntTag.valueOf(z));
+                                // TODO (VI/O)
+                                ValueInput input = createInput(tag);
+                                tileEntity.loadWithComponents(input);
+                            }
                         }
                     }
                 };
