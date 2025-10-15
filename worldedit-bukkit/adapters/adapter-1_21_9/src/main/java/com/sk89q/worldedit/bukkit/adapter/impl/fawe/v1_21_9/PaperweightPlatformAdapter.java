@@ -9,6 +9,7 @@ import com.fastasyncworldedit.core.Fawe;
 import com.fastasyncworldedit.core.FaweCache;
 import com.fastasyncworldedit.core.math.BitArrayUnstretched;
 import com.fastasyncworldedit.core.math.IntPair;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.MathMan;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.mojang.serialization.DataResult;
@@ -21,6 +22,7 @@ import com.sk89q.worldedit.world.biome.BiomeTypes;
 import com.sk89q.worldedit.world.block.BlockState;
 import com.sk89q.worldedit.world.block.BlockTypesCache;
 import io.papermc.lib.PaperLib;
+import io.papermc.paper.util.MCUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.IdMap;
@@ -337,10 +339,29 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
     }
 
     private static void addTicket(ServerLevel serverLevel, int chunkX, int chunkZ) {
-        // Ensure chunk is definitely loaded before applying a ticket
-        io.papermc.paper.util.MCUtil.MAIN_EXECUTOR.execute(() -> serverLevel
-                .getChunkSource()
-                .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0));
+        boolean isFolia = FoliaUtil.isFoliaServer();
+
+        if (isFolia) {
+            try {
+                serverLevel.getChunkSource()
+                        .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0);
+            } catch (Exception e) {
+                // Ignore if we can't add the ticket in Folia - this is expected behavior
+            }
+        } else {
+            try {
+                MCUtil.MAIN_EXECUTOR.execute(() -> serverLevel
+                        .getChunkSource()
+                        .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0));
+            } catch (Exception e) {
+                try {
+                    serverLevel.getChunkSource()
+                            .addTicketWithRadius(ChunkHolderManager.UNLOAD_COOLDOWN, new ChunkPos(chunkX, chunkZ), 0);
+                } catch (Exception ex) {
+                    // Ignore if we can't add the ticket
+                }
+            }
+        }
     }
 
     public static ChunkHolder getPlayerChunk(ServerLevel nmsWorld, final int chunkX, final int chunkZ) {
@@ -373,7 +394,9 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
         if (lockHolder.chunkLock == null) {
             return;
         }
-        MinecraftServer.getServer().execute(() -> {
+
+        boolean isFolia = FoliaUtil.isFoliaServer();
+        if (isFolia) {
             try {
                 ChunkPos pos = levelChunk.getPos();
                 ClientboundLevelChunkWithLightPacket packet;
@@ -398,7 +421,61 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
             } finally {
                 NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
             }
-        });
+        } else {
+            try {
+                MinecraftServer.getServer().execute(() -> {
+                    try {
+                        ChunkPos pos = levelChunk.getPos();
+                        ClientboundLevelChunkWithLightPacket packet;
+                        if (PaperLib.isPaper()) {
+                            packet = new ClientboundLevelChunkWithLightPacket(
+                                    levelChunk,
+                                    nmsWorld.getLightEngine(),
+                                    null,
+                                    null,
+                                    false // last false is to not bother with x-ray
+                            );
+                        } else {
+                            // deprecated on paper - deprecation suppressed
+                            packet = new ClientboundLevelChunkWithLightPacket(
+                                    levelChunk,
+                                    nmsWorld.getLightEngine(),
+                                    null,
+                                    null
+                            );
+                        }
+                        nearbyPlayers(nmsWorld, pos).forEach(p -> p.connection.send(packet));
+                    } finally {
+                        NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
+                    }
+                });
+            } catch (Exception e) {
+                try {
+                    ChunkPos pos = levelChunk.getPos();
+                    ClientboundLevelChunkWithLightPacket packet;
+                    if (PaperLib.isPaper()) {
+                        packet = new ClientboundLevelChunkWithLightPacket(
+                                levelChunk,
+                                nmsWorld.getLightEngine(),
+                                null,
+                                null,
+                                false // last false is to not bother with x-ray
+                        );
+                    } else {
+                        // deprecated on paper - deprecation suppressed
+                        packet = new ClientboundLevelChunkWithLightPacket(
+                                levelChunk,
+                                nmsWorld.getLightEngine(),
+                                null,
+                                null
+                        );
+                    }
+                    nearbyPlayers(nmsWorld, pos).forEach(p -> p.connection.send(packet));
+                } finally {
+                    NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
+                }
+            }
+        }
     }
 
     private static List<ServerPlayer> nearbyPlayers(ServerLevel serverLevel, ChunkPos coordIntPair) {

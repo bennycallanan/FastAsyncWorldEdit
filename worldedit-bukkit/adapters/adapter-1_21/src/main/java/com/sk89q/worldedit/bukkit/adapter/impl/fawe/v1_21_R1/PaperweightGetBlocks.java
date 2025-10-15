@@ -60,6 +60,8 @@ import net.minecraft.world.level.chunk.PalettedContainerRO;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import org.apache.logging.log4j.Logger;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.block.CraftBlock;
@@ -725,6 +727,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 }
 
                 syncTasks[0] = () -> {
+                    final World world = nmsWorld.getWorld();
                     for (final Map.Entry<BlockVector3, FaweCompoundTag> entry : tiles.entrySet()) {
                         final FaweCompoundTag nativeTag = entry.getValue();
                         final BlockVector3 blockHash = entry.getKey();
@@ -733,20 +736,24 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                         final int z = blockHash.z() + bz;
                         final BlockPos pos = new BlockPos(x, y, z);
 
-                        synchronized (nmsWorld) {
-                            BlockEntity tileEntity = nmsWorld.getBlockEntity(pos);
-                            if (tileEntity == null || tileEntity.isRemoved()) {
-                                nmsWorld.removeBlockEntity(pos);
-                                tileEntity = nmsWorld.getBlockEntity(pos);
-                            }
-                            if (tileEntity != null) {
-                                final CompoundTag tag = (CompoundTag) adapter.fromNativeLin(nativeTag.linTag());
-                                tag.put("x", IntTag.valueOf(x));
-                                tag.put("y", IntTag.valueOf(y));
-                                tag.put("z", IntTag.valueOf(z));
-                                tileEntity.loadWithComponents(tag, DedicatedServer.getServer().registryAccess());
-                            }
-                        }
+                        final Location location = new Location(world, x, y, z);
+                        Bukkit.getServer().getRegionScheduler().execute(WorldEditPlugin.getInstance(), location, () -> {
+                                    synchronized (nmsChunk) {
+                                        BlockEntity tileEntity = nmsChunk.getBlockEntity(pos);
+                                        if (tileEntity == null || tileEntity.isRemoved()) {
+                                            nmsChunk.removeBlockEntity(pos);
+                                            tileEntity = nmsChunk.getBlockEntity(pos);
+                                        }
+                                        if (tileEntity != null) {
+                                            final CompoundTag tag = (CompoundTag) adapter.fromNativeLin(nativeTag.linTag());
+                                            tag.put("x", IntTag.valueOf(x));
+                                            tag.put("y", IntTag.valueOf(y));
+                                            tag.put("z", IntTag.valueOf(z));
+                                            tileEntity.loadWithComponents(tag, DedicatedServer.getServer().registryAccess());
+                                        }
+                                    }
+                                }
+                        );
                     }
                 };
             }
