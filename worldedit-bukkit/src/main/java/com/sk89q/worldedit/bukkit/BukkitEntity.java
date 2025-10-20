@@ -20,6 +20,7 @@
 package com.sk89q.worldedit.bukkit;
 
 import com.fastasyncworldedit.core.util.FoliaUtil;
+import com.fastasyncworldedit.core.util.TaskManager;
 import com.sk89q.worldedit.bukkit.adapter.BukkitImplAdapter;
 import com.sk89q.worldedit.entity.BaseEntity;
 import com.sk89q.worldedit.entity.Entity;
@@ -120,21 +121,36 @@ public class BukkitEntity implements Entity {
 
     @Override
     public boolean remove() {
-        org.bukkit.entity.Entity entity = entityRef.get();
-        if (entity != null) {
-            try {
-                if (FoliaUtil.isFoliaServer()) {
+        if (FoliaUtil.isFoliaServer()) {
+            return TaskManager.taskManager().syncWhenFree(() -> {
+                org.bukkit.entity.Entity entity = entityRef.get();
+                if (entity == null) {
+                    return true;
+                }
+                try {
                     entity.getScheduler().execute(WorldEditPlugin.getInstance(), entity::remove, null, 1);
                     return true;
-                } else {
-                    entity.remove();
-                    return entity.isDead();
+                } catch (UnsupportedOperationException e) {
+                    return false;
                 }
-            } catch (UnsupportedOperationException e) {
-                return false;
-            }
+            });
         } else {
-            return true;
+            return TaskManager.taskManager().sync(() -> {
+                org.bukkit.entity.Entity entity = entityRef.get();
+                if (entity == null) {
+                    return true;
+                }
+                try {
+                    entity.remove();
+                } catch (UnsupportedOperationException e) {
+                    return false;
+                }
+                try {
+                    return entity.isDead();
+                } catch (Throwable t) {
+                    return !entity.isValid();
+                }
+            });
         }
     }
 
