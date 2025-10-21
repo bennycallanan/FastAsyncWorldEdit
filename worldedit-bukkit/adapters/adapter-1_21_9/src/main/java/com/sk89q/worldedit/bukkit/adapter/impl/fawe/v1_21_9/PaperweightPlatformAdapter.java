@@ -72,6 +72,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -691,8 +692,9 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
 
     static void removeBeacon(BlockEntity beacon, LevelChunk levelChunk) {
         try {
+            Map<BlockPos, BlockEntity> blockEntities = levelChunk.getBlockEntities();
             if (levelChunk.loaded || levelChunk.level.isClientSide()) {
-                BlockEntity blockEntity = levelChunk.blockEntities.remove(beacon.getBlockPos());
+                BlockEntity blockEntity = blockEntities.remove(beacon.getBlockPos());
                 if (blockEntity != null) {
                     if (!levelChunk.level.isClientSide()) {
                         methodRemoveGameEventListener.invoke(levelChunk, beacon, levelChunk.level);

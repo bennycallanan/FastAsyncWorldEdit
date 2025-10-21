@@ -728,8 +728,9 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
 
     static void removeBeacon(BlockEntity beacon, LevelChunk levelChunk) {
         try {
+            Map<BlockPos, BlockEntity> blockEntities = levelChunk.getBlockEntities();
             if (levelChunk.loaded || levelChunk.level.isClientSide()) {
-                BlockEntity blockEntity = levelChunk.blockEntities.remove(beacon.getBlockPos());
+                BlockEntity blockEntity = blockEntities.remove(beacon.getBlockPos());
                 if (blockEntity != null) {
                     if (!levelChunk.level.isClientSide) {
                         methodRemoveGameEventListener.invoke(levelChunk, beacon, levelChunk.level);

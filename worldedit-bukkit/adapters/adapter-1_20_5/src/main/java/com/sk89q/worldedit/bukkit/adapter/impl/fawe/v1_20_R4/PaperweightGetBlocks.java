@@ -379,12 +379,22 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 int ordinal = set.getBlock(lx, ly, lz).getOrdinal();
                 if (ordinal != BlockTypesCache.ReservedIDs.__RESERVED__) {
                     BlockEntity tile = entry.getValue();
-                    if (PaperLib.isPaper() && tile instanceof BeaconBlockEntity) {
+                    if (PaperLib.isPaper() && tile instanceof BeaconBlockEntity beacon) {
                         if (beacons == null) {
                             beacons = new ArrayList<>();
                         }
-                        beacons.add(tile);
-                        PaperweightPlatformAdapter.removeBeacon(tile, nmsChunk);
+                        beacons.add(beacon);
+                        if (FoliaUtil.isFoliaServer()) {
+                            final Location location = new Location(
+                                    nmsWorld.getWorld(),
+                                    beacon.getBlockPos().getX(),
+                                    beacon.getBlockPos().getY(),
+                                    beacon.getBlockPos().getZ()
+                            );
+                            Bukkit.getServer().getRegionScheduler().execute(WorldEditPlugin.getInstance(), location, () -> PaperweightPlatformAdapter.removeBeacon(beacon, nmsChunk));
+                        } else {
+                            PaperweightPlatformAdapter.removeBeacon(beacon, nmsChunk);
+                        }
                         continue;
                     }
                     nmsChunk.removeBlockEntity(tile.getBlockPos());
@@ -704,18 +714,21 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                                 entity.load(tag);
                                 entity.absMoveTo(x, y, z, yaw, pitch);
                                 entity.setUUID(NbtUtils.uuid(nativeTag));
-                                if (!nmsWorld.addFreshEntity(entity, CreatureSpawnEvent.SpawnReason.CUSTOM)) {
-                                    LOGGER.warn(
-                                            "Error creating entity of type `{}` in world `{}` at location `{},{},{}`",
-                                            id,
-                                            nmsWorld.getWorld().getName(),
-                                            x,
-                                            y,
-                                            z
-                                    );
-                                    // Unsuccessful create should not be saved to history
-                                    iterator.remove();
-                                }
+                                final Location location = new Location(nmsWorld.getWorld(), x, y, z);
+                                Bukkit.getServer().getRegionScheduler().execute(WorldEditPlugin.getInstance(), location, () -> {
+                                    if (!nmsWorld.addFreshEntity(entity, CreatureSpawnEvent.SpawnReason.CUSTOM)) {
+                                        LOGGER.warn(
+                                                "Error creating entity of type `{}` in world `{}` at location `{},{},{}`",
+                                                id,
+                                                nmsWorld.getWorld().getName(),
+                                                x,
+                                                y,
+                                                z
+                                        );
+                                        // Unsuccessful create should not be saved to history
+                                        iterator.remove();
+                                    }
+                                });
                             }
                         }
                     }

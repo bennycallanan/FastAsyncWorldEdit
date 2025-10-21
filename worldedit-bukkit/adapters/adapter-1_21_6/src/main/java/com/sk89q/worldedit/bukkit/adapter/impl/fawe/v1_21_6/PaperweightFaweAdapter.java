@@ -10,6 +10,7 @@ import com.fastasyncworldedit.core.nbt.FaweCompoundTag;
 import com.fastasyncworldedit.core.queue.IBatchProcessor;
 import com.fastasyncworldedit.core.queue.IChunkGet;
 import com.fastasyncworldedit.core.queue.implementation.packet.ChunkPacket;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.NbtUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -19,6 +20,7 @@ import com.mojang.serialization.Codec;
 import com.sk89q.jnbt.Tag;
 import com.sk89q.worldedit.blocks.BaseItemStack;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import com.sk89q.worldedit.bukkit.adapter.BukkitImplAdapter;
 import com.sk89q.worldedit.bukkit.adapter.ext.fawe.v1_21_6.PaperweightAdapter;
 import com.sk89q.worldedit.bukkit.adapter.impl.fawe.v1_21_6.regen.PaperweightRegen;
@@ -108,10 +110,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 
 import static com.sk89q.worldedit.bukkit.adapter.impl.fawe.v1_21_6.PaperweightPlatformAdapter.createOutput;
 import static net.minecraft.core.registries.Registries.BIOME;
@@ -330,15 +335,39 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
     public BaseEntity getEntity(org.bukkit.entity.Entity entity) {
         Preconditions.checkNotNull(entity);
 
-        CraftEntity craftEntity = ((CraftEntity) entity);
-        Entity mcEntity = craftEntity.getHandle();
-
-        String id = getEntityId(mcEntity);
+        String id = entity.getType().getKey().toString();
         EntityType type = com.sk89q.worldedit.world.entity.EntityTypes.get(id);
         Supplier<LinCompoundTag> saveTag = () -> {
             final net.minecraft.nbt.CompoundTag minecraftTag = new net.minecraft.nbt.CompoundTag();
-            if (!readEntityIntoTag(mcEntity, minecraftTag)) {
-                return null;
+            if (FoliaUtil.isFoliaServer()) {
+                CompletableFuture<Entity> handleFuture = new CompletableFuture<>();
+                entity.getScheduler().run(
+                        WorldEditPlugin.getInstance(),
+                        (ScheduledTask task) -> {
+                            try {
+                                handleFuture.complete(((CraftEntity) entity).getHandle());
+                            } catch (Throwable t) {
+                                handleFuture.completeExceptionally(t);
+                            }
+                        },
+                        () -> handleFuture.completeExceptionally(new CancellationException("Entity scheduler task cancelled"))
+                );
+                Entity mcEntity;
+                try {
+                    mcEntity = handleFuture.join();
+                } catch (Throwable t) {
+                    LOGGER.error("Failed to safely get NMS handle for {}", id, t);
+                    return null;
+                }
+
+                if (mcEntity == null || !readEntityIntoTag(mcEntity, minecraftTag)) {
+                    return null;
+                }
+            } else {
+                Entity mcEntity = ((CraftEntity) entity).getHandle();
+                if (!readEntityIntoTag(mcEntity, minecraftTag)) {
+                    return null;
+                }
             }
             //add Id for AbstractChangeSet to work
             final LinCompoundTag tag = (LinCompoundTag) toNativeLin(minecraftTag);
@@ -347,7 +376,6 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
             return LinCompoundTag.of(tags);
         };
         return new LazyBaseEntity(type, saveTag);
-
     }
 
     @Override
