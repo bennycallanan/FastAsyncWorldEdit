@@ -1,5 +1,6 @@
 package com.fastasyncworldedit.bukkit.adapter;
 
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -13,9 +14,11 @@ import org.bukkit.TreeType;
 import org.bukkit.World;
 import org.bukkit.block.BlockState;
 
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A base class for version-specific implementations of the BukkitImplAdapter
@@ -49,6 +52,11 @@ public abstract class FaweAdapter<TAG, SERVER_LEVEL> extends CachedBukkitAdapter
         }
         BlockVector3 target = blockVector3;
         SERVER_LEVEL serverLevel = getServerLevel(world);
+
+        if (FoliaUtil.isFoliaServer()) {
+            return generateTreeFolia(bukkitType, editSession, target, world);
+        }
+
         List<BlockState> placed = TaskManager.taskManager().sync(() -> {
             preCaptureStates(serverLevel);
             try {
@@ -73,6 +81,59 @@ public abstract class FaweAdapter<TAG, SERVER_LEVEL> extends CachedBukkitAdapter
             );
         }
         return true;
+    }
+
+    private boolean generateTreeFolia(
+            final TreeType treeType,
+            final EditSession editSession,
+            final BlockVector3 target,
+            final World world
+    ) {
+        Set<BlockVector3> beforeBlocks = new HashSet<>();
+
+        int radius = 10;
+        int height = 32;
+        for (int x = -radius; x <= radius; x++) {
+            for (int y = -5; y <= height; y++) {
+                for (int z = -radius; z <= radius; z++) {
+                    BlockVector3 pos = target.add(x, y, z);
+                    org.bukkit.block.Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
+                    if (block.getType() != Material.AIR) {
+                        beforeBlocks.add(pos);
+                    }
+                }
+            }
+        }
+
+        boolean generated = TaskManager.taskManager().sync(()
+                -> world.generateTree(BukkitAdapter.adapt(world, target), treeType));
+
+        if (!generated) {
+            return false;
+        }
+
+        List<BlockState> newBlocks = new ArrayList<>();
+        for (int x = -radius; x <= radius; x++) {
+            for (int y = -5; y <= height; y++) {
+                for (int z = -radius; z <= radius; z++) {
+                    BlockVector3 pos = target.add(x, y, z);
+                    if (!beforeBlocks.contains(pos)) {
+                        org.bukkit.block.Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
+                        if (block.getType() != Material.AIR) {
+                            newBlocks.add(block.getState());
+                        }
+                    }
+                }
+            }
+        }
+
+        for (BlockState blockState : newBlocks) {
+            editSession.setBlock(blockState.getX(), blockState.getY(), blockState.getZ(),
+                    BukkitAdapter.adapt(blockState.getBlockData())
+            );
+        }
+
+        return !newBlocks.isEmpty();
     }
 
     public void mapFromGlobalPalette(char[] data) {

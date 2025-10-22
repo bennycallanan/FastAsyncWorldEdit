@@ -16,7 +16,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
-import com.mojang.serialization.Codec;
 import com.sk89q.jnbt.Tag;
 import com.sk89q.worldedit.blocks.BaseItemStack;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -27,7 +26,6 @@ import com.sk89q.worldedit.bukkit.adapter.impl.fawe.v1_20_R3.regen.PaperweightRe
 import com.sk89q.worldedit.entity.BaseEntity;
 import com.sk89q.worldedit.extent.Extent;
 import com.sk89q.worldedit.function.mask.BlockTypeMask;
-import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
 import com.sk89q.worldedit.internal.util.LogManagerCompat;
 import com.sk89q.worldedit.internal.wna.WorldNativeAccess;
 import com.sk89q.worldedit.math.BlockVector3;
@@ -55,14 +53,10 @@ import io.papermc.lib.PaperLib;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.WritableRegistry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
@@ -554,20 +548,62 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
 
     @Override
     protected void preCaptureStates(final ServerLevel serverLevel) {
-        serverLevel.captureTreeGeneration = true;
-        serverLevel.captureBlockStates = true;
+        try {
+            Field captureTreeField = ServerLevel.class.getDeclaredField("captureTreeGeneration");
+            captureTreeField.setAccessible(true);
+            captureTreeField.setBoolean(serverLevel, true);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // Unable to read captureTreeGeneration field
+        }
+        try {
+            Field captureBlockField = ServerLevel.class.getDeclaredField("captureBlockStates");
+            captureBlockField.setAccessible(true);
+            captureBlockField.setBoolean(serverLevel, true);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // Unable to read captureTreeGeneration field
+        }
     }
 
     @Override
     protected List<org.bukkit.block.BlockState> getCapturedBlockStatesCopy(final ServerLevel serverLevel) {
-        return new ArrayList<>(serverLevel.capturedBlockStates.values());
+        try {
+            Field capturedStatesField = ServerLevel.class.getDeclaredField("capturedBlockStates");
+            capturedStatesField.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            Map<BlockPos, org.bukkit.block.BlockState> capturedStates = (Map<BlockPos, org.bukkit.block.BlockState>) capturedStatesField.get(serverLevel);
+            return capturedStates != null ? new ArrayList<>(capturedStates.values()) : new ArrayList<>();
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            return new ArrayList<>();
+        }
     }
 
     @Override
     protected void postCaptureBlockStates(final ServerLevel serverLevel) {
-        serverLevel.captureBlockStates = false;
-        serverLevel.captureTreeGeneration = false;
-        serverLevel.capturedBlockStates.clear();
+        try {
+            Field captureBlockField = ServerLevel.class.getDeclaredField("captureBlockStates");
+            captureBlockField.setAccessible(true);
+            captureBlockField.setBoolean(serverLevel, false);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // Unable to read captureTreeGeneration field
+        }
+        try {
+            Field captureTreeField = ServerLevel.class.getDeclaredField("captureTreeGeneration");
+            captureTreeField.setAccessible(true);
+            captureTreeField.setBoolean(serverLevel, false);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // Unable to read captureTreeGeneration field
+        }
+        try {
+            Field capturedStatesField = ServerLevel.class.getDeclaredField("capturedBlockStates");
+            capturedStatesField.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            Map<BlockPos, org.bukkit.block.BlockState> capturedStates = (Map<BlockPos, org.bukkit.block.BlockState>) capturedStatesField.get(serverLevel);
+            if (capturedStates != null) {
+                capturedStates.clear();
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // Unable to read captureTreeGeneration field
+        }
     }
 
     @Override
