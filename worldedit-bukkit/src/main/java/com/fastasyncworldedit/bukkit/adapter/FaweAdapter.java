@@ -9,16 +9,20 @@ import com.sk89q.worldedit.bukkit.adapter.BukkitImplAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.registry.state.Property;
 import com.sk89q.worldedit.util.TreeGenerator;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.TreeType;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A base class for version-specific implementations of the BukkitImplAdapter
@@ -89,6 +93,49 @@ public abstract class FaweAdapter<TAG, SERVER_LEVEL> extends CachedBukkitAdapter
             final BlockVector3 target,
             final World world
     ) {
+        boolean isRegionThread = Bukkit.isOwnedByCurrentRegion(world, target.x() >> 4, target.z() >> 4);
+
+        if (isRegionThread) {
+            return generateTreeFoliaInternal(treeType, editSession, target, world);
+        }
+
+        Plugin plugin = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
+        if (plugin == null) plugin = Bukkit.getPluginManager().getPlugin("WorldEdit");
+        if (plugin == null) {
+            return false;
+        }
+
+        final Plugin finalPlugin = plugin;
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+
+        Bukkit.getServer().getRegionScheduler().run(
+            finalPlugin,
+            world,
+            target.x() >> 4,
+            target.z() >> 4,
+            task -> {
+                try {
+                    boolean result = generateTreeFoliaInternal(treeType, editSession, target, world);
+                    future.complete(result);
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }
+        );
+
+        try {
+            return future.get();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate tree on Folia", e);
+        }
+    }
+
+    private boolean generateTreeFoliaInternal(
+            final TreeType treeType,
+            final EditSession editSession,
+            final BlockVector3 target,
+            final World world
+    ) {
         Set<BlockVector3> beforeBlocks = new HashSet<>();
 
         int radius = 10;
@@ -105,8 +152,7 @@ public abstract class FaweAdapter<TAG, SERVER_LEVEL> extends CachedBukkitAdapter
             }
         }
 
-        boolean generated = TaskManager.taskManager().sync(()
-                -> world.generateTree(BukkitAdapter.adapt(world, target), treeType));
+        boolean generated = world.generateTree(BukkitAdapter.adapt(world, target), treeType);
 
         if (!generated) {
             return false;
@@ -118,7 +164,7 @@ public abstract class FaweAdapter<TAG, SERVER_LEVEL> extends CachedBukkitAdapter
                 for (int z = -radius; z <= radius; z++) {
                     BlockVector3 pos = target.add(x, y, z);
                     if (!beforeBlocks.contains(pos)) {
-                        org.bukkit.block.Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
+                        Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
                         if (block.getType() != Material.AIR) {
                             newBlocks.add(block.getState());
                         }
