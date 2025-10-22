@@ -562,6 +562,11 @@ public abstract class FaweStreamChangeSet extends AbstractChangeSet {
 
     public Iterator<MutableFullBlockChange> getFullBlockIterator(BlockBag blockBag, int inventory, final boolean dir) throws
             IOException {
+        final FaweInputStream blockIS = getBlockIS();
+        if (blockIS == null) {
+            return Collections.emptyIterator();
+        }
+
         final FaweInputStream is = new FaweInputStream(getBlockIS());
         final MutableFullBlockChange change = new MutableFullBlockChange(blockBag, inventory, dir);
         return new Iterator<MutableFullBlockChange>() {
@@ -576,7 +581,6 @@ public abstract class FaweStreamChangeSet extends AbstractChangeSet {
                     return change;
                 } catch (EOFException ignored) {
                 } catch (Exception e) {
-                    e.printStackTrace();
                     e.printStackTrace();
                 }
                 try {
