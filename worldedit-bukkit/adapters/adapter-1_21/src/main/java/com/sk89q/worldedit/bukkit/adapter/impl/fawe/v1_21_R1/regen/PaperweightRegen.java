@@ -5,6 +5,7 @@ import com.fastasyncworldedit.core.Fawe;
 import com.fastasyncworldedit.core.queue.IChunkCache;
 import com.fastasyncworldedit.core.queue.IChunkGet;
 import com.fastasyncworldedit.core.queue.implementation.chunk.ChunkCache;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Lifecycle;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -35,6 +36,7 @@ import org.bukkit.World;
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.generator.BiomeProvider;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -42,6 +44,8 @@ import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -207,7 +211,60 @@ public class PaperweightRegen extends Regenerator {
         if (paperConfigField != null) {
             paperConfigField.set(freshWorld, originalServerWorld.paperConfig());
         }
+
+        if (FoliaUtil.isFoliaServer()) {
+            return initWorldForFolia(newWorldData);
+        }
+
         return true;
+    }
+
+    private boolean initWorldForFolia(PrimaryLevelData worldData) throws ExecutionException, InterruptedException {
+        MinecraftServer console = ((CraftServer) Bukkit.getServer()).getServer();
+
+        ChunkPos spawnChunk = new ChunkPos(
+                freshWorld.getChunkSource().randomState().sampler().findSpawnPosition()
+        );
+
+        setRandomSpawnSelection(spawnChunk);
+
+        Plugin plugin = getPlugin();
+        if (plugin == null) {
+            throw new IllegalStateException("Cannot find FastAsyncWorldEdit or WorldEdit plugin");
+        }
+
+        CompletableFuture<Boolean> initFuture = new CompletableFuture<>();
+
+        Bukkit.getServer().getRegionScheduler().run(
+                plugin,
+                freshWorld.getWorld(),
+                spawnChunk.x, spawnChunk.z,
+                task -> {
+                    try {
+                        console.initWorld(freshWorld, worldData, worldData, worldData.worldGenOptions());
+                        initFuture.complete(true);
+                    } catch (Exception e) {
+                        initFuture.completeExceptionally(e);
+                    }
+                }
+        );
+
+        return initFuture.get();
+    }
+
+    private void setRandomSpawnSelection(ChunkPos spawnChunk) {
+        try {
+            Field randomSpawnField = ServerLevel.class.getDeclaredField("randomSpawnSelection");
+            randomSpawnField.setAccessible(true);
+            randomSpawnField.set(freshWorld, spawnChunk);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to set randomSpawnSelection for Folia world initialization", e);
+        }
+    }
+
+    private Plugin getPlugin() {
+        Plugin plugin = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
+        return plugin != null ? plugin : Bukkit.getPluginManager().getPlugin("WorldEdit");
     }
 
     @Override

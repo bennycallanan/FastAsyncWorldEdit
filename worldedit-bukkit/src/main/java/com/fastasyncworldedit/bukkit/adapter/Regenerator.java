@@ -4,6 +4,7 @@ import com.fastasyncworldedit.core.queue.IChunk;
 import com.fastasyncworldedit.core.queue.IChunkCache;
 import com.fastasyncworldedit.core.queue.IChunkGet;
 import com.fastasyncworldedit.core.queue.implementation.SingleThreadQueueExtent;
+import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.TaskManager;
 import com.sk89q.worldedit.WorldEditException;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -15,8 +16,12 @@ import com.sk89q.worldedit.regions.Region;
 import com.sk89q.worldedit.world.RegenOptions;
 import com.sk89q.worldedit.world.biome.BiomeType;
 import com.sk89q.worldedit.world.block.BaseBlock;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.generator.BiomeProvider;
 import org.bukkit.generator.WorldInfo;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -104,29 +109,94 @@ public abstract class Regenerator {
     private void copyToWorld() {
         createSource();
         final long timeoutPerTick = TimeUnit.MILLISECONDS.toNanos(10);
-        int taskId = TaskManager.taskManager().repeat(() -> {
+        int taskId = FoliaUtil.isFoliaServer()
+                ? scheduleFoliaRegenTask(timeoutPerTick)
+                : scheduleRegenTask(timeoutPerTick);
+
+        Pattern pattern = createRegenerationPattern();
+        target.setBlocks(region, pattern);
+
+        TaskManager.taskManager().cancel(taskId);
+    }
+
+    private int scheduleRegenTask(long timeoutPerTick) {
+        return TaskManager.taskManager().repeat(() -> {
             final long startTime = System.nanoTime();
             runTasks(() -> System.nanoTime() - startTime < timeoutPerTick);
         }, 1);
-        //Setting Blocks
-        boolean genbiomes = options.shouldRegenBiomes();
-        boolean hasBiome = options.hasBiomeType();
-        BiomeType biome = options.getBiomeType();
-        Pattern pattern;
-        if (!genbiomes && !hasBiome) {
-            pattern = new PlacementPattern();
-        } else if (hasBiome) {
-            pattern = new WithBiomePlacementPattern((ignored1, ignored2) -> biome);
-        } else {
-            pattern = new WithBiomePlacementPattern((vec, chunk) -> {
-                if (chunk != null) {
-                    return chunk.getBiomeType(vec.x() & 15, vec.y(), vec.z() & 15);
-                }
-                return source.getBiome(vec);
-            });
+    }
+
+    private int scheduleFoliaRegenTask(long timeoutPerTick) {
+        org.bukkit.World freshWorld = getFreshWorldViaReflection();
+        if (freshWorld == null) {
+            throw new UnsupportedOperationException(
+                    "Cannot find fresh world for Folia regeneration. " +
+                    "The regenerator must have a 'freshWorld' field of type ServerLevel."
+            );
         }
-        target.setBlocks(region, pattern);
-        TaskManager.taskManager().cancel(taskId);
+
+        BlockVector3 min = region.getMinimumPoint();
+        Location location = new Location(freshWorld, min.x(), min.y(), min.z());
+
+        Plugin plugin = getPlugin();
+        if (plugin == null) {
+            throw new IllegalStateException("Cannot schedule Folia task: plugin instance not found");
+        }
+
+        var task = Bukkit.getServer().getRegionScheduler().runAtFixedRate(
+                plugin,
+                location,
+                scheduledTask -> {
+                    final long startTime = System.nanoTime();
+                    runTasks(() -> System.nanoTime() - startTime < timeoutPerTick);
+                },
+                1,
+                1
+        );
+
+        return System.identityHashCode(task);
+    }
+
+    private @Nullable World getFreshWorldViaReflection() {
+        try {
+            var field = this.getClass().getDeclaredField("freshWorld");
+            field.setAccessible(true);
+            var freshWorld = field.get(this);
+            if (freshWorld == null) {
+                return null;
+            }
+
+            var getWorldMethod = freshWorld.getClass().getMethod("getWorld");
+            return (World) getWorldMethod.invoke(freshWorld);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private @Nullable Plugin getPlugin() {
+        Plugin plugin = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
+        return plugin != null ? plugin : Bukkit.getPluginManager().getPlugin("WorldEdit");
+    }
+
+    private Pattern createRegenerationPattern() {
+        boolean genBiomes = options.shouldRegenBiomes();
+        boolean hasBiome = options.hasBiomeType();
+
+        if (!genBiomes && !hasBiome) {
+            return new PlacementPattern();
+        }
+
+        if (hasBiome) {
+            BiomeType biome = options.getBiomeType();
+            return new WithBiomePlacementPattern((ignored1, ignored2) -> biome);
+        }
+
+        return new WithBiomePlacementPattern((vec, chunk) -> {
+            if (chunk != null) {
+                return chunk.getBiomeType(vec.x() & 15, vec.y(), vec.z() & 15);
+            }
+            return source.getBiome(vec);
+        });
     }
 
     private abstract class ChunkwisePattern implements Pattern {
@@ -147,7 +217,6 @@ public abstract class Regenerator {
 
         @Override
         public abstract Pattern fork();
-
     }
 
     private class PlacementPattern extends ChunkwisePattern {
