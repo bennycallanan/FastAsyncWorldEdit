@@ -396,4 +396,12 @@ public interface IBukkitAdapter {
         }
     }
 
+    /**
+     * Import Minecraft internal features into FAWE. Should be executed after worlds loading (in order to capture datapacks)
+     *
+     * @since TODO
+     */
+    default void setupFeatures() {
+    }
+
 }

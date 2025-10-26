@@ -45,6 +45,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.StateHolder;
 import net.minecraft.world.level.chunk.GlobalPalette;
 import net.minecraft.world.level.chunk.HashMapPalette;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -96,6 +97,8 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
     private static final Field fieldTickingBlockCount;
     private static final Field fieldBiomes;
 
+    private static final Field fieldPropertiesCodec;
+
     private static final MethodHandle methodGetVisibleChunk;
 
     private static final Field fieldThreadingDetector;
@@ -141,6 +144,9 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
             }
             fieldBiomes = tmpFieldBiomes;
             fieldBiomes.setAccessible(true);
+
+            fieldPropertiesCodec = StateHolder.class.getDeclaredField(Refraction.pickName("propertiesCodec", "f"));
+            fieldPropertiesCodec.setAccessible(true);
 
             Method getVisibleChunkIfPresent = ChunkMap.class.getDeclaredMethod(Refraction.pickName(
                     "getVisibleChunkIfPresent",
@@ -499,8 +505,7 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
             }
 
             int bitsPerEntryNonZero = Math.max(bitsPerEntry, 1); // We do want to use zero sometimes
-            final int blocksPerLong = MathMan.floorZero((double) 64 / bitsPerEntryNonZero);
-            final int blockBitArrayEnd = MathMan.ceilZero((float) 4096 / blocksPerLong);
+            final int blockBitArrayEnd = MathMan.longArrayLength(bitsPerEntryNonZero, 4096);
 
             if (num_palette == 1) {
                 for (int i = 0; i < blockBitArrayEnd; i++) {
@@ -657,8 +662,7 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
         }
 
         int bitsPerEntryNonZero = Math.max(bitsPerEntry, 1); // We do want to use zero sometimes
-        final int blocksPerLong = MathMan.floorZero((double) 64 / bitsPerEntryNonZero);
-        final int arrayLength = MathMan.ceilZero(64f / blocksPerLong);
+        final int arrayLength = MathMan.longArrayLength(bitsPerEntryNonZero, 64);
 
 
         BitStorage bitStorage = bitsPerEntry == 0 ? new ZeroBitStorage(64) : new SimpleBitStorage(
