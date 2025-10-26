@@ -3,7 +3,6 @@ package com.sk89q.worldedit.bukkit.adapter.impl.fawe.v1_21_R1;
 import com.fastasyncworldedit.bukkit.adapter.AbstractBukkitGetBlocks;
 import com.fastasyncworldedit.bukkit.adapter.DelegateSemaphore;
 import com.fastasyncworldedit.bukkit.adapter.NativeEntityFunctionSet;
-import com.fastasyncworldedit.core.Fawe;
 import com.fastasyncworldedit.core.FaweCache;
 import com.fastasyncworldedit.core.configuration.Settings;
 import com.fastasyncworldedit.core.extent.processor.heightmap.HeightMapType;
@@ -12,7 +11,6 @@ import com.fastasyncworldedit.core.math.BitArrayUnstretched;
 import com.fastasyncworldedit.core.math.IntPair;
 import com.fastasyncworldedit.core.nbt.FaweCompoundTag;
 import com.fastasyncworldedit.core.queue.IChunkSet;
-import com.fastasyncworldedit.core.queue.implementation.QueueHandler;
 import com.fastasyncworldedit.core.util.FoliaUtil;
 import com.fastasyncworldedit.core.util.MathMan;
 import com.fastasyncworldedit.core.util.NbtUtils;
@@ -85,7 +83,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -620,7 +617,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                     set.getMaxSectionPosition()
             );
 
-            Runnable[] syncTasks = null;
+            List<Runnable> syncTasks = new ArrayList<>();
 
             int bx = chunkX << 4;
             int bz = chunkZ << 4;
@@ -629,24 +626,17 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
             // list will be null on spigot, so this is an implicit isPaper check
             if (beacons != null && !beacons.isEmpty()) {
                 final List<BlockEntity> finalBeacons = beacons;
-
-                syncTasks = new Runnable[4];
-
-                syncTasks[3] = () -> {
+                syncTasks.add(() -> {
                     for (BlockEntity beacon : finalBeacons) {
                         BeaconBlockEntity.playSound(beacon.getLevel(), beacon.getBlockPos(), SoundEvents.BEACON_DEACTIVATE);
                         new BeaconDeactivatedEvent(CraftBlock.at(beacon.getLevel(), beacon.getBlockPos())).callEvent();
                     }
-                };
+                });
             }
 
             Set<UUID> entityRemoves = set.getEntityRemoves();
             if (entityRemoves != null && !entityRemoves.isEmpty()) {
-                if (syncTasks == null) {
-                    syncTasks = new Runnable[3];
-                }
-
-                syncTasks[2] = () -> {
+                syncTasks.add(() -> {
                     Set<UUID> entitiesRemoved = new HashSet<>();
                     final List<Entity> entities = PaperweightPlatformAdapter.getEntities(nmsChunk);
 
@@ -672,16 +662,12 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                     // Only save entities that were actually removed to history
                     set.getEntityRemoves().clear();
                     set.getEntityRemoves().addAll(entitiesRemoved);
-                };
+                });
             }
 
             Collection<FaweCompoundTag> entities = set.entities();
             if (entities != null && !entities.isEmpty()) {
-                if (syncTasks == null) {
-                    syncTasks = new Runnable[2];
-                }
-
-                syncTasks[1] = () -> {
+                syncTasks.add(() -> {
                     Iterator<FaweCompoundTag> iterator = entities.iterator();
                     while (iterator.hasNext()) {
                         final FaweCompoundTag nativeTag = iterator.next();
@@ -729,17 +715,13 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                             }
                         }
                     }
-                };
+                });
             }
 
             // set tiles
             Map<BlockVector3, FaweCompoundTag> tiles = set.tiles();
             if (tiles != null && !tiles.isEmpty()) {
-                if (syncTasks == null) {
-                    syncTasks = new Runnable[1];
-                }
-
-                syncTasks[0] = () -> {
+                syncTasks.add(() -> {
                     final World world = nmsWorld.getWorld();
                     for (final Map.Entry<BlockVector3, FaweCompoundTag> entry : tiles.entrySet()) {
                         final FaweCompoundTag nativeTag = entry.getValue();
@@ -768,7 +750,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                                 }
                         );
                     }
-                };
+                });
             }
 
             Runnable callback;
@@ -776,11 +758,12 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 callback = null;
             } else {
                 int finalMask = bitMask != 0 ? bitMask : lightUpdate ? set.getBitMask() : 0;
-                callback = () -> {
+                syncTasks.add(() -> {
                     // Set Modified
-                    nmsChunk.setLightCorrect(true); // Set Modified
+                    nmsChunk.setLightCorrect(true);
                     nmsChunk.mustNotSave = false;
-                    nmsChunk.setUnsaved(true);
+                });
+                callback = () -> {
                     // send to player
                     if (!set
                             .getSideEffectSet()
@@ -792,45 +775,8 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                     }
                 };
             }
-            if (syncTasks != null) {
-                QueueHandler queueHandler = Fawe.instance().getQueueHandler();
-                Runnable[] finalSyncTasks = syncTasks;
-
-                // Chain the sync tasks and the callback
-                Callable<Future> chain = () -> {
-                    try {
-                        // Run the sync tasks
-                        for (Runnable task : finalSyncTasks) {
-                            if (task != null) {
-                                task.run();
-                            }
-                        }
-                        if (callback == null) {
-                            if (finalizer != null) {
-                                queueHandler.async(finalizer, null);
-                            }
-                            return null;
-                        } else {
-                            return queueHandler.async(callback, null);
-                        }
-                    } catch (Throwable e) {
-                        LOGGER.error("Error performing final chunk calling at {},{}", chunkX, chunkZ, e);
-                        throw e;
-                    }
-                };
-                //noinspection unchecked - required at compile time
-                return (T) (Future) queueHandler.sync(chain);
-            } else {
-                if (callback == null) {
-                    if (finalizer != null) {
-                        finalizer.run();
-                    }
-                } else {
-                    callback.run();
-                }
-            }
+            return handleCallFinalizer(syncTasks, callback, finalizer);
         }
-        return null;
     }
 
     private void updateGet(
