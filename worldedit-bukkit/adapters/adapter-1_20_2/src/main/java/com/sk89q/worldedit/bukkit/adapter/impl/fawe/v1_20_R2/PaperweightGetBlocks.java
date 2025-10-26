@@ -630,7 +630,6 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
             // list will be null on spigot, so this is an implicit isPaper check
             if (beacons != null && !beacons.isEmpty()) {
                 final List<BlockEntity> finalBeacons = beacons;
-
                 syncTasks.add(() -> {
                     for (BlockEntity beacon : finalBeacons) {
                         BeaconBlockEntity.playSound(beacon.getLevel(), beacon.getBlockPos(), SoundEvents.BEACON_DEACTIVATE);
