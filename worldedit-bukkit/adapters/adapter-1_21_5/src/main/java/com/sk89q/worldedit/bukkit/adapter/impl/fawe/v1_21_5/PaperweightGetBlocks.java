@@ -759,7 +759,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 int finalMask = bitMask != 0 ? bitMask : lightUpdate ? set.getBitMask() : 0;
                 syncTasks.add(() -> {
                     // Set Modified
-                    nmsChunk.setLightCorrect(true); // Set Modified
+                    nmsChunk.setLightCorrect(true);
                     nmsChunk.mustNotSave = false;
                 });
                 callback = () -> {

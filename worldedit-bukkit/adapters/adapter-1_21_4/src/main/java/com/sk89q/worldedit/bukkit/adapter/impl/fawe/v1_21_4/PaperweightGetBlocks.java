@@ -761,6 +761,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                     // Set Modified
                     nmsChunk.setLightCorrect(true);
                     nmsChunk.mustNotSave = false;
+                    nmsChunk.markUnsaved();
                 });
                 callback = () -> {
                     // send to player
