@@ -335,15 +335,17 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
     private void removeEntity(Entity entity) {
         if (FoliaUtil.isFoliaServer()) {
             entity.getBukkitEntity().getScheduler().execute(
-                WorldEditPlugin.getInstance(), () -> {
+                WorldEditPlugin.getInstance(),
+                () -> {
                     if (!entity.isRemoved()) {
                         entity.discard();
                     }
-                }, null, 1L);
-        } else {
-            if (!entity.isRemoved()) {
-                entity.discard();
-            }
+                },
+                null,
+                1L
+            );
+        } else if (!entity.isRemoved()) {
+            entity.discard();
         }
     }
 
@@ -389,14 +391,18 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                             beacons = new ArrayList<>();
                         }
                         beacons.add(beacon);
+                        Location location = new Location(
+                                nmsWorld.getWorld(),
+                                beacon.getBlockPos().getX(),
+                                beacon.getBlockPos().getY(),
+                                beacon.getBlockPos().getZ()
+                        );
                         if (FoliaUtil.isFoliaServer()) {
-                            final Location location = new Location(
-                                    nmsWorld.getWorld(),
-                                    beacon.getBlockPos().getX(),
-                                    beacon.getBlockPos().getY(),
-                                    beacon.getBlockPos().getZ()
+                            Bukkit.getServer().getRegionScheduler().execute(
+                                    WorldEditPlugin.getInstance(),
+                                    location,
+                                    () -> PaperweightPlatformAdapter.removeBeacon(beacon, nmsChunk)
                             );
-                            Bukkit.getServer().getRegionScheduler().execute(WorldEditPlugin.getInstance(), location, () -> PaperweightPlatformAdapter.removeBeacon(beacon, nmsChunk));
                         } else {
                             PaperweightPlatformAdapter.removeBeacon(beacon, nmsChunk);
                         }
