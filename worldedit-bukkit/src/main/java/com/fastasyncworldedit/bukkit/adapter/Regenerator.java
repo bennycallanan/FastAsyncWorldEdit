@@ -9,6 +9,7 @@ import com.fastasyncworldedit.core.util.TaskManager;
 import com.sk89q.worldedit.WorldEditException;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.bukkit.BukkitWorld;
+import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import com.sk89q.worldedit.extent.Extent;
 import com.sk89q.worldedit.function.pattern.Pattern;
 import com.sk89q.worldedit.math.BlockVector3;
@@ -21,7 +22,6 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.generator.BiomeProvider;
 import org.bukkit.generator.WorldInfo;
-import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -138,13 +138,8 @@ public abstract class Regenerator {
         BlockVector3 min = region.getMinimumPoint();
         Location location = new Location(freshWorld, min.x(), min.y(), min.z());
 
-        Plugin plugin = getPlugin();
-        if (plugin == null) {
-            throw new IllegalStateException("Cannot schedule Folia task: plugin instance not found");
-        }
-
         var task = Bukkit.getServer().getRegionScheduler().runAtFixedRate(
-                plugin,
+                WorldEditPlugin.getInstance(),
                 location,
                 scheduledTask -> {
                     long startTime = System.nanoTime();
@@ -171,11 +166,6 @@ public abstract class Regenerator {
         } catch (Exception e) {
             return null;
         }
-    }
-
-    private @Nullable Plugin getPlugin() {
-        Plugin plugin = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
-        return plugin != null ? plugin : Bukkit.getPluginManager().getPlugin("WorldEdit");
     }
 
     private Pattern createRegenerationPattern() {

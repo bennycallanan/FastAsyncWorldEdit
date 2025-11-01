@@ -5,6 +5,7 @@ import com.fastasyncworldedit.core.util.TaskManager;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.bukkit.BukkitWorld;
+import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import com.sk89q.worldedit.bukkit.adapter.BukkitImplAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.registry.state.Property;
@@ -15,7 +16,6 @@ import org.bukkit.TreeType;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
-import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -97,18 +97,10 @@ public abstract class FaweAdapter<TAG, SERVER_LEVEL> extends CachedBukkitAdapter
             return generateTreeFoliaInternal(treeType, editSession, target, world);
         }
 
-        Plugin plugin = Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
-        if (plugin == null) {
-            plugin = Bukkit.getPluginManager().getPlugin("WorldEdit");
-        }
-        if (plugin == null) {
-            return false;
-        }
-
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         Bukkit.getServer().getRegionScheduler().run(
-                plugin,
+                WorldEditPlugin.getInstance(),
                 world,
                 target.x() >> 4,
                 target.z() >> 4,
