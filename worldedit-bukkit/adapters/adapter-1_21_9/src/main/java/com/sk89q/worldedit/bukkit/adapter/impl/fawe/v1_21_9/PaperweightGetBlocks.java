@@ -374,11 +374,11 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
         List<BlockEntity> beacons = null;
         if (!chunkTiles.isEmpty()) {
             for (Map.Entry<BlockPos, BlockEntity> entry : chunkTiles.entrySet()) {
-                final BlockPos pos = entry.getKey();
-                final int lx = pos.getX() & 15;
-                final int ly = pos.getY();
-                final int lz = pos.getZ() & 15;
-                final int layer = ly >> 4;
+                BlockPos pos = entry.getKey();
+                int lx = pos.getX() & 15;
+                int ly = pos.getY();
+                int lz = pos.getZ() & 15;
+                int layer = ly >> 4;
                 if (!set.hasSection(layer)) {
                     continue;
                 }
@@ -415,7 +415,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                 }
             }
         }
-        final BiomeType[][] biomes = set.getBiomes();
+        BiomeType[][] biomes = set.getBiomes();
 
         int bitMask = 0;
         synchronized (nmsChunk) {
@@ -788,15 +788,13 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
             } else {
                 int finalMask = bitMask != 0 ? bitMask : lightUpdate ? set.getBitMask() : 0;
                 syncTasks.add(() -> {
-                    // Set Modified
                     nmsChunk.setLightCorrect(true);
                     nmsChunk.mustNotSave = false;
                 });
                 callback = () -> {
-                    // send to player
-                    if (!set
-                            .getSideEffectSet()
-                            .shouldApply(SideEffect.LIGHTING) || !Settings.settings().LIGHTING.DELAY_PACKET_SENDING || finalMask == 0 && biomes != null) {
+                    if (!set.getSideEffectSet().shouldApply(SideEffect.LIGHTING)
+                            || !Settings.settings().LIGHTING.DELAY_PACKET_SENDING
+                            || finalMask == 0 && biomes != null) {
                         this.send();
                     }
                     if (finalizer != null) {

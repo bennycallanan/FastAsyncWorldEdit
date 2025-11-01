@@ -106,10 +106,9 @@ public abstract class FaweAdapter<TAG, SERVER_LEVEL> extends CachedBukkitAdapter
         }
 
         CompletableFuture<Boolean> future = new CompletableFuture<>();
-        Plugin finalPlugin = plugin;
 
         Bukkit.getServer().getRegionScheduler().run(
-                finalPlugin,
+                plugin,
                 world,
                 target.x() >> 4,
                 target.z() >> 4,

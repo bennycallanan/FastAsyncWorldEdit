@@ -176,8 +176,8 @@ public class BukkitWorld extends AbstractWorld {
     }
 
     @Override
-    public int removeEntities(final Region region) {
-        final World world = getWorld();
+    public int removeEntities(Region region) {
+        World world = getWorld();
         if (FoliaUtil.isFoliaServer()) {
             return TaskManager.taskManager().syncWhenFree(() -> {
                 Plugin plugin = WorldEditPlugin.getInstance();
