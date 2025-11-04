@@ -67,12 +67,14 @@ import org.bukkit.TreeType;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.Location;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Entity;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 
 import java.lang.ref.WeakReference;
+import java.util.concurrent.CompletableFuture;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -145,13 +147,26 @@ public class BukkitWorld extends AbstractWorld {
         }
     }
 
+    private <T> T syncRegion(BlockVector3 position, java.util.function.Supplier<T> supplier) {
+        if (FoliaUtil.isFoliaServer()) {
+            World world = getWorld();
+            Location location = new Location(world, position.x(), position.y(), position.z());
+            CompletableFuture<T> future = new CompletableFuture<>();
+            Bukkit.getServer().getRegionScheduler().run(
+                    WorldEditPlugin.getInstance(),
+                    location,
+                    scheduledTask -> future.complete(supplier.get())
+            );
+            return future.join();
+        }
+        return TaskManager.taskManager().sync(supplier);
+    }
+
     @Override
     public List<com.sk89q.worldedit.entity.Entity> getEntities(Region region) {
         World world = getWorld();
 
-        List<Entity> ents = FoliaUtil.isFoliaServer()
-                ? TaskManager.taskManager().syncWhenFree(world::getEntities)
-                : TaskManager.taskManager().sync(world::getEntities);
+        List<Entity> ents = syncRegion(region.getMinimumPoint(), world::getEntities);
         List<com.sk89q.worldedit.entity.Entity> entities = new ArrayList<>();
         for (Entity ent : ents) {
             if (region.contains(BukkitAdapter.asBlockVector(ent.getLocation()))) {
@@ -165,9 +180,7 @@ public class BukkitWorld extends AbstractWorld {
     public List<com.sk89q.worldedit.entity.Entity> getEntities() {
         List<com.sk89q.worldedit.entity.Entity> list = new ArrayList<>();
 
-        List<Entity> ents = FoliaUtil.isFoliaServer()
-                ? TaskManager.taskManager().syncWhenFree(getWorld()::getEntities)
-                : TaskManager.taskManager().sync(getWorld()::getEntities);
+        List<Entity> ents = syncRegion(BlockVector3.ZERO, getWorld()::getEntities);
         for (Entity entity : ents) {
             list.add(BukkitAdapter.adapt(entity));
         }
@@ -177,11 +190,8 @@ public class BukkitWorld extends AbstractWorld {
     @Override
     public int removeEntities(final Region region) {
         List<com.sk89q.worldedit.entity.Entity> entities = getEntities(region);
-        return FoliaUtil.isFoliaServer()
-                ? TaskManager.taskManager().syncWhenFree(() -> entities.stream()
-                        .mapToInt(entity -> entity.remove() ? 1 : 0).sum())
-                : TaskManager.taskManager().sync(() -> entities.stream()
-                        .mapToInt(entity -> entity.remove() ? 1 : 0).sum());
+        return syncRegion(region.getMinimumPoint(), () -> entities.stream()
+                .mapToInt(entity -> entity.remove() ? 1 : 0).sum());
     }
 
     //FAWE: createEntity was moved to IChunkExtent to prevent issues with Async Entity Add.
