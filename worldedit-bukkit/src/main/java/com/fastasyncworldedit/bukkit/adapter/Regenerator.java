@@ -112,26 +112,20 @@ public abstract class Regenerator {
         int taskId;
         if (FoliaUtil.isFoliaServer()) {
             World freshWorld = getFreshWorld();
-            if (freshWorld != null) {
-                BlockVector3 min = region.getMinimumPoint();
-                Location location = new Location(freshWorld, min.x(), min.y(), min.z());
-                var task = Bukkit.getServer().getRegionScheduler().runAtFixedRate(
-                        WorldEditPlugin.getInstance(),
-                        location,
-                        scheduledTask -> {
-                            final long startTime = System.nanoTime();
-                            runTasks(() -> System.nanoTime() - startTime < timeoutPerTick);
-                        },
-                        1,
-                        1
-                );
-                taskId = System.identityHashCode(task);
-            } else {
-                taskId = TaskManager.taskManager().repeat(() -> {
-                    final long startTime = System.nanoTime();
-                    runTasks(() -> System.nanoTime() - startTime < timeoutPerTick);
-                }, 1);
-            }
+            World world = freshWorld != null ? freshWorld : originalBukkitWorld;
+            BlockVector3 min = region.getMinimumPoint();
+            Location location = new Location(world, min.x(), min.y(), min.z());
+            var task = Bukkit.getServer().getRegionScheduler().runAtFixedRate(
+                    WorldEditPlugin.getInstance(),
+                    location,
+                    scheduledTask -> {
+                        final long startTime = System.nanoTime();
+                        runTasks(() -> System.nanoTime() - startTime < timeoutPerTick);
+                    },
+                    1,
+                    1
+            );
+            taskId = System.identityHashCode(task);
         } else {
             taskId = TaskManager.taskManager().repeat(() -> {
                 final long startTime = System.nanoTime();
