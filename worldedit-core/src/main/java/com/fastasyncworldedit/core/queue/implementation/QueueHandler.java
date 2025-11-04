@@ -107,7 +107,7 @@ public abstract class QueueHandler implements Trimable, Runnable {
 
     @Override
     public void run() {
-        if (!FoliaUtil.isFoliaServer() && !Fawe.isMainThread()) {
+        if (!Fawe.isMainThread() && !FoliaUtil.isFoliaServer()) {
             throw new IllegalStateException("Not main thread");
         }
         if (!syncTasks.isEmpty()) {
