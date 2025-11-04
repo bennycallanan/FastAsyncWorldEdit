@@ -55,7 +55,11 @@ public class BukkitTaskManager extends TaskManager {
     @Override
     public void later(@Nonnull final Runnable runnable, final int delay) {
         if (FoliaUtil.isFoliaServer()) {
-            this.plugin.getServer().getGlobalRegionScheduler().runDelayed(this.plugin, scheduledTask -> runnable.run(), delay);
+            if (delay == 0) {
+                this.plugin.getServer().getGlobalRegionScheduler().run(this.plugin, scheduledTask -> runnable.run());
+            } else {
+                this.plugin.getServer().getGlobalRegionScheduler().runDelayed(this.plugin, scheduledTask -> runnable.run(), delay);
+            }
             return;
         }
         this.plugin.getServer().getScheduler().runTaskLater(this.plugin, runnable, delay).getTaskId();
@@ -64,7 +68,11 @@ public class BukkitTaskManager extends TaskManager {
     @Override
     public void laterAsync(@Nonnull final Runnable runnable, final int delay) {
         if (FoliaUtil.isFoliaServer()) {
-            this.plugin.getServer().getAsyncScheduler().runDelayed(this.plugin, scheduledTask -> runnable.run(), delay * 50L, TimeUnit.MILLISECONDS);
+            if (delay == 0) {
+                this.plugin.getServer().getAsyncScheduler().runNow(this.plugin, scheduledTask -> runnable.run());
+            } else {
+                this.plugin.getServer().getAsyncScheduler().runDelayed(this.plugin, scheduledTask -> runnable.run(), delay * 50L, TimeUnit.MILLISECONDS);
+            }
             return;
         }
         this.plugin.getServer().getScheduler().runTaskLaterAsynchronously(this.plugin, runnable, delay);
