@@ -1071,7 +1071,7 @@ public abstract class FaweStreamChangeSet extends AbstractChangeSet {
                 for (int i = 0; i < amount; i++) {
                     int x = posDel.readX(fis) + ox;
                     int y = posDel.readY(fis);
-                    int z = posDel.readZ(fis) + oz;
+                    int z = posDel.readZ(fis) + ox;
                     idDel.readCombined(fis, change);
                     summary.add(x, z, change.to);
                 }
