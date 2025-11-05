@@ -680,7 +680,8 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
                         if (type != null) {
                             Entity entity = type.create(nmsWorld);
                             if (entity != null) {
-                                final CompoundTag tag = (CompoundTag) adapter.fromNativeLin(linTag);
+                                final net.minecraft.nbt.CompoundTag tag = (net.minecraft.nbt.CompoundTag) adapter.fromNativeLin(
+                                        linTag);
                                 for (final String name : Constants.NO_COPY_ENTITY_NBT_FIELDS) {
                                     tag.remove(name);
                                 }

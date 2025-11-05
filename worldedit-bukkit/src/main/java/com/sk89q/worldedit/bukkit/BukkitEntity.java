@@ -29,6 +29,7 @@ import com.sk89q.worldedit.entity.metadata.EntityProperties;
 import com.sk89q.worldedit.extent.Extent;
 import com.sk89q.worldedit.util.Location;
 import com.sk89q.worldedit.world.NullWorld;
+import io.papermc.lib.PaperLib;
 import org.bukkit.entity.EntityType;
 
 import javax.annotation.Nullable;
@@ -85,7 +86,7 @@ public class BukkitEntity implements Entity {
     public boolean setLocation(Location location) {
         org.bukkit.entity.Entity entity = entityRef.get();
         if (entity != null) {
-            if (FoliaUtil.isFoliaServer()) {
+            if (PaperLib.isPaper()) {
                 return entity.teleportAsync(BukkitAdapter.adapt(location)).join();
             }
             return entity.teleport(BukkitAdapter.adapt(location));

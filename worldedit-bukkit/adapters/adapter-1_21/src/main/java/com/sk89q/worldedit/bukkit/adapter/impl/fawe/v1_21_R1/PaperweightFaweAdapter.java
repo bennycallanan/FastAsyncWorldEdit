@@ -579,6 +579,11 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
         serverLevel.capturedBlockStates.clear();
     }
 
+    @Override
+    protected ServerLevel getServerLevel(final World world) {
+        return ((CraftWorld) world).getHandle();
+    }
+
     private <T> T syncRegion(World world, BlockVector3 pt, java.util.function.Supplier<T> supplier) {
         if (FoliaUtil.isFoliaServer()) {
             Location location = new Location(world, pt.x(), pt.y(), pt.z());
@@ -595,6 +600,7 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
 
     @Override
     public boolean generateFeature(ConfiguredFeatureType feature, World world, EditSession editSession, BlockVector3 pt) {
+        //FAWE start
         ServerLevel serverLevel = getServerLevel(world);
         ChunkGenerator generator = serverLevel.getMinecraftWorld().getChunkSource().getGenerator();
 
@@ -777,11 +783,6 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
                 StructureType.REGISTRY.register(name.toString(), new StructureType(name.toString()));
             }
         }
-    }
-
-    @Override
-    protected ServerLevel getServerLevel(final World world) {
-        return ((CraftWorld) world).getHandle();
     }
 
     @Override

@@ -356,6 +356,7 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
         if (chunkHolder == null) {
             return;
         }
+        ChunkPos coordIntPair = new ChunkPos(chunkX, chunkZ);
         LevelChunk levelChunk;
         if (PaperLib.isPaper()) {
             // getChunkAtIfLoadedImmediately is paper only
@@ -373,12 +374,11 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
         }
         if (FoliaUtil.isFoliaServer()) {
             try {
-                ChunkPos pos = levelChunk.getPos();
                 ClientboundLevelChunkWithLightPacket packet;
                 if (PaperLib.isPaper()) {
                     packet = new ClientboundLevelChunkWithLightPacket(
                             levelChunk,
-                            nmsWorld.getLightEngine(),
+                            nmsWorld.getChunkSource().getLightEngine(),
                             null,
                             null,
                             false // last false is to not bother with x-ray
@@ -387,12 +387,12 @@ public final class PaperweightPlatformAdapter extends NMSAdapter {
                     // deprecated on paper - deprecation suppressed
                     packet = new ClientboundLevelChunkWithLightPacket(
                             levelChunk,
-                            nmsWorld.getLightEngine(),
+                            nmsWorld.getChunkSource().getLightEngine(),
                             null,
                             null
                     );
                 }
-                nearbyPlayers(nmsWorld, pos).forEach(p -> p.connection.send(packet));
+                nearbyPlayers(nmsWorld, coordIntPair).forEach(p -> p.connection.send(packet));
             } finally {
                 NMSAdapter.endChunkPacketSend(nmsWorld.getWorld().getName(), pair, lockHolder);
             }

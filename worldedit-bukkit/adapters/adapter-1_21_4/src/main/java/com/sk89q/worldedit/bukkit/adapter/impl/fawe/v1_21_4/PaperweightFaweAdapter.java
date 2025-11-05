@@ -337,7 +337,7 @@ public final class PaperweightFaweAdapter extends FaweAdapter<Tag, ServerLevel> 
     }
 
     @Override
-    public WorldNativeAccess<?, ?, ?> createWorldNativeAccess(org.bukkit.World world) {
+    public WorldNativeAccess<?, ?, ?> createWorldNativeAccess(World world) {
         return new PaperweightFaweWorldNativeAccess(this, new WeakReference<>(getServerLevel(world)));
     }
 
@@ -565,6 +565,11 @@ public final class PaperweightFaweAdapter extends FaweAdapter<Tag, ServerLevel> 
         serverLevel.capturedBlockStates.clear();
     }
 
+    @Override
+    protected ServerLevel getServerLevel(final World world) {
+        return ((CraftWorld) world).getHandle();
+    }
+
     private <T> T syncRegion(World world, BlockVector3 pt, java.util.function.Supplier<T> supplier) {
         if (FoliaUtil.isFoliaServer()) {
             Location location = new Location(world, pt.x(), pt.y(), pt.z());
@@ -760,11 +765,6 @@ public final class PaperweightFaweAdapter extends FaweAdapter<Tag, ServerLevel> 
                 StructureType.REGISTRY.register(name.toString(), new StructureType(name.toString()));
             }
         }
-    }
-
-    @Override
-    protected ServerLevel getServerLevel(final World world) {
-        return ((CraftWorld) world).getHandle();
     }
 
     @Override

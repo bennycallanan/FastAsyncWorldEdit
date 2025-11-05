@@ -614,6 +614,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
             // list will be null on spigot, so this is an implicit isPaper check
             if (beacons != null && !beacons.isEmpty()) {
                 final List<BlockEntity> finalBeacons = beacons;
+
                 syncTasks.add(() -> {
                     for (BlockEntity beacon : finalBeacons) {
                         BeaconBlockEntity.playSound(beacon.getLevel(), beacon.getBlockPos(), SoundEvents.BEACON_DEACTIVATE);
@@ -624,6 +625,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
 
             Set<UUID> entityRemoves = set.getEntityRemoves();
             if (entityRemoves != null && !entityRemoves.isEmpty()) {
+
                 syncTasks.add(() -> {
                     Set<UUID> entitiesRemoved = new HashSet<>();
                     final List<Entity> entities = PaperweightPlatformAdapter.getEntities(nmsChunk);
@@ -655,6 +657,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
 
             Collection<FaweCompoundTag> entities = set.entities();
             if (entities != null && !entities.isEmpty()) {
+
                 syncTasks.add(() -> {
                     Iterator<FaweCompoundTag> iterator = entities.iterator();
                     while (iterator.hasNext()) {
@@ -726,6 +729,7 @@ public class PaperweightGetBlocks extends AbstractBukkitGetBlocks<ServerLevel, L
             // set tiles
             Map<BlockVector3, FaweCompoundTag> tiles = set.tiles();
             if (tiles != null && !tiles.isEmpty()) {
+
                 syncTasks.add(() -> {
                     for (final Map.Entry<BlockVector3, FaweCompoundTag> entry : tiles.entrySet()) {
                         final FaweCompoundTag nativeTag = entry.getValue();

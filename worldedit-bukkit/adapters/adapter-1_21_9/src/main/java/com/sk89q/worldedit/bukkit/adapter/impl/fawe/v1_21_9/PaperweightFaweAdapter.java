@@ -779,7 +779,6 @@ public final class PaperweightFaweAdapter extends FaweAdapter<net.minecraft.nbt.
         }
     }
 
-
     @Override
     protected ServerLevel getServerLevel(final World world) {
         return ((CraftWorld) world).getHandle();
